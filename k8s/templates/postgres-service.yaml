@@ -1,0 +1,23 @@
+{{/*
+Service headless para o Postgres. StatefulSets exigem um Service
+headless (clusterIP: None) para que cada pod receba um DNS estável
+(postgres-0, postgres-1, ...). Clientes comuns também resolvem este
+nome para alcançar o pod.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  clusterIP: None
+  selector:
+    {{- include "guess-game.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: 5432
+      name: postgres

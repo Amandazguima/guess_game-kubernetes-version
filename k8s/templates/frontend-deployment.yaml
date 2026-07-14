@@ -1,0 +1,58 @@
+{{/*
+Deployment do frontend (NGINX + React).
+
+Detalhe importante: a imagem publicada (amandazguima/guess-game-frontend:v1)
+já vem com um nginx.conf cujo upstream aponta para "backend1"/"backend2"
+(nomes do Docker Compose). No Kubernetes precisamos apontar para o
+Service "backend". Em vez de reconstruir a imagem, montamos o ConfigMap
+"frontend-nginx-config" via subPath sobre /etc/nginx/nginx.conf.
+Assim a mesma imagem funciona em ambos os ambientes.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "guess-game.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "guess-game.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: {{ .Values.images.frontend }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - containerPort: 80
+              name: http
+          # Sobrescreve /etc/nginx/nginx.conf com o do ConfigMap
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: frontend-nginx-config

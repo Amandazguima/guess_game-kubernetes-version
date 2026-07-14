@@ -1,0 +1,67 @@
+{{/*
+Deployment do backend (Flask + Gunicorn). As réplicas são gerenciadas
+aqui; o HPA ajusta a quantidade automaticamente conforme a CPU.
+
+Recursos (resources.requests.cpu) são obrigatórios para o HPA calcular
+a % de utilização.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "guess-game.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "guess-game.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: {{ .Values.images.backend }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: FLASK_APP
+              value: "run.py"
+            - name: FLASK_DB_TYPE
+              value: "postgres"
+            - name: FLASK_DB_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: FLASK_DB_NAME
+              value: {{ .Values.postgres.name | quote }}
+            - name: FLASK_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: FLASK_DB_HOST
+              value: "postgres"
+            - name: FLASK_DB_PORT
+              value: {{ .Values.postgres.port | quote }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          # Mesmo healthcheck do Compose: GET /health -> 200
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 15

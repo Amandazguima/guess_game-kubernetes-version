@@ -1,0 +1,82 @@
+{{/*
+ConfigMap com o nginx.conf que será montado sobre o arquivo
+/etc/nginx/nginx.conf existente na imagem do frontend.
+
+Por que precisamos disto?
+A imagem publicada (amandazguima/guess-game-frontend:v1) já contém um
+nginx.conf cujo upstream aponta para os nomes "backend1"/"backend2"
+(usados no Docker Compose da Unidade I). No Kubernetes esses nomes não
+existem — o Service se chama "backend". Em vez de reconstruir a imagem
+(proibido pelo enunciado), sobrescrevemos a configuração em runtime via
+ConfigMap montado com subPath no caminho do arquivo.
+
+A única diferença em relação ao nginx.conf do Compose é o bloco
+upstream, que agora aponta para o Service "backend" do K8s. O
+balanceamento de carga entre as réplicas do backend é feito pelo
+kube-proxy (Service ClusterIP), não mais pelo nginx.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        # No Kubernetes há um único Service "backend". O kube-proxy faz
+        # o balanceamento de carga entre as réplicas do Deployment.
+        upstream guessgame_backend {
+            server backend:{{ .Values.backend.port }};
+        }
+
+        server {
+            listen 80;
+            server_name localhost;
+
+            # Serve a SPA React com fallback para index.html (roteamento client-side)
+            location / {
+                root /usr/share/nginx/html;
+                index index.html;
+                try_files $uri $uri/ /index.html;
+            }
+
+            # ---- Proxy reverso para a API do backend ----
+            location = /create {
+                proxy_pass http://guessgame_backend/create;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location ~ ^/guess/ {
+                proxy_pass http://guessgame_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/ {
+                proxy_pass http://guessgame_backend/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /health {
+                proxy_pass http://guessgame_backend/health;
+                proxy_set_header Host $host;
+            }
+        }
+    }

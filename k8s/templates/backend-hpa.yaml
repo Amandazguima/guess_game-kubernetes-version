@@ -1,0 +1,32 @@
+{{/*
+HorizontalPodAutoscaler do backend.
+
+Escala entre minReplicas e maxReplicas mantendo a utilização média de
+CPU em até cpuAverageUtilization (%). Exige:
+  - metrics-server no cluster (o k3s/k3d já inclui por padrão)
+  - resources.requests.cpu definido no Deployment do backend (já está)
+*/}}
+{{- if .Values.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.cpuAverageUtilization }}
+{{- end }}

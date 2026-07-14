@@ -1,0 +1,22 @@
+{{/*
+Service ClusterIP do backend. O kube-proxy faz o balanceamento de
+carga entre as réplicas do Deployment. O nginx do frontend aponta
+para este nome ("backend").
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "guess-game.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  ports:
+    - port: {{ .Values.backend.port }}
+      targetPort: 5000
+      name: http

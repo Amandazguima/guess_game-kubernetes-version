@@ -1,0 +1,58 @@
+# ============================================================
+# values.yaml — Parâmetros do Helm chart guess-game
+# ============================================================
+# Imagens publicadas no Docker Hub do aluno (não é necessário
+# reconstruí-las durante o deploy no k3d).
+# ============================================================
+dockerHubUser: amandazguima
+
+images:
+  backend: amandazguima/guess-game-backend:v1
+  frontend: amandazguima/guess-game-frontend:v1
+  postgres: postgres:15-alpine
+  pullPolicy: IfNotPresent
+
+# ------------------------------------------------------------
+# Namespace onde todos os recursos são criados
+# ------------------------------------------------------------
+namespace: guess-game
+
+# ------------------------------------------------------------
+# Backend (Flask + Gunicorn)
+# ------------------------------------------------------------
+backend:
+  replicas: 2                 # mantém 2 réplicas no mínimo (mesmo sem HPA)
+  port: 5000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# ------------------------------------------------------------
+# HPA — Autoescala do backend por utilização de CPU
+# ------------------------------------------------------------
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  cpuAverageUtilization: 70
+
+# ------------------------------------------------------------
+# Frontend (NGINX + React)
+# ------------------------------------------------------------
+frontend:
+  replicas: 1
+  port: 80
+
+# ------------------------------------------------------------
+# Postgres
+# ------------------------------------------------------------
+postgres:
+  port: 5432
+  user: postgres
+  name: postgres
+  password: secretpass       # Secret em texto puro (decisão do projeto)
+  storage: 1Gi               # tamanho do PVC persistente

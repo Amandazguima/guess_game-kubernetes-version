@@ -1,0 +1,21 @@
+{{/*
+Service ClusterIP do frontend. É o alvo do `kubectl port-forward`
+(svc/frontend 8080:80) que expõe a aplicação no host.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "guess-game.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "guess-game.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+  ports:
+    - port: {{ .Values.frontend.port }}
+      targetPort: 80
+      name: http
