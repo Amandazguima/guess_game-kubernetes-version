@@ -1,26 +1,16 @@
 # Guess Game — Jogo de Adivinhação
 
-Este projeto implementa o **Guess Game** (estilo Mastermind) com duas formas de deploy:
-
-| Unidade | Tecnologia | Pasta |
-|---------|-----------|-------|
-| **I — Docker Compose** | Docker Compose, NGINX, Gunicorn | Raiz do repositório |
-| **II — Kubernetes** | k3d, Helm Charts, HPA | `/k8s` |
-
-> **Regra**: Nenhuma alteração foi feita no código-fonte da aplicação (`.py`, `.tsx`, `.js`, `.css`). Todas as mudanças estão em arquivos de infraestrutura.
+Este projeto implementa o **Guess Game** junto ao Kubernetes
 
 ---
 
-
----
-
-## Unidade II — Kubernetes (k3d + Helm)
+## Kubernetes (k3d + Helm)
 
 ### Arquitetura
 
 ```
                     ┌─────────────────────────────────────────┐
-  kubectl           │  k3d Cluster (1 server + 2 agents)     │
+  kubectl           │  k3d Cluster (1 server + 2 agents)      │
   port-forward      │                                         │
        │            │  Namespace: guess-game                  │
        ▼            │                                         │
@@ -28,21 +18,21 @@ Este projeto implementa o **Guess Game** (estilo Mastermind) com duas formas de 
        │            │  │ frontend │ Deployment x1             │
        └────────────┤  │ (nginx)  │──── proxy ────┐           │
                     │  └──────────┘               │           │
-                    │         Service: frontend    │           │
+                    │         Service: frontend   │           │
                     │                             ▼           │
-                    │              Service: backend :5000      │
-                    │                    │                     │
-                    │              ┌─────┴──────┐              │
-                    │              │  Deployment │ HPA 2-6    │
-                    │              │  (backend)  │ (auto-cpu)  │
-                    │              └─────┬──────┘              │
-                    │                    │                     │
-                    │              Service: postgres :5432     │
-                    │                    │                     │
-                    │              ┌─────┴──────┐              │
-                    │              │ StatefulSet│ PVC 1Gi       │
-                    │              │ (postgres) │ (local-path)  │
-                    │              └────────────┘              │
+                    │              Service: backend :5000     │
+                    │                    │                    │
+                    │              ┌─────┴──────┐             │
+                    │              │  Deployment│  HPA 2-6    │
+                    │              │  (backend) │  (auto-cpu) │
+                    │              └─────┬──────┘             │
+                    │                    │                    │
+                    │              Service: postgres :5432    │
+                    │                    │                    │
+                    │              ┌─────┴──────┐             │
+                    │              │ StatefulSet│ PVC 1Gi     │
+                    │              │ (postgres) │ (local-path)│
+                    │              └────────────┘             │
                     └─────────────────────────────────────────┘
 ```
 
@@ -53,7 +43,7 @@ Este projeto implementa o **Guess Game** (estilo Mastermind) com duas formas de 
 | **k3d** | `brew install k3d` |
 | **kubectl** | `brew install kubectl` |
 | **helm** | `brew install helm` |
-| **Docker** | Docker Desktop (necessário para o k3d rodar) |
+| **Docker** | Docker Desktop |
 
 ### Imagens no Docker Hub
 
@@ -164,58 +154,6 @@ k3d cluster delete guess-game
 | **Health check** | `GET http://localhost:8080/health` | `{"status": "ok"}` |
 
 ---
-
-## Estrutura do Repositório
-
-```
-guess_game/
-├── docker-compose.yml          # Unidade I: Orquestração Docker Compose
-├── Dockerfile.backend          # Imagem do backend (Gunicorn)
-├── Dockerfile.frontend         # Imagem do frontend (multi-stage: Node → NGINX)
-├── nginx.conf                  # NGINX config (proxy reverso + load balancer)
-├── requirements.txt             # Dependências Python
-├── .dockerignore
-├── k8s/                        # Unidade II: Helm Chart Kubernetes
-│   ├── Chart.yaml              # Metadados do chart
-│   ├── values.yaml             # Parâmetros (imagens, réplicas, HPA, senha)
-│   ├── README.md               # Documentação do chart
-│   └── templates/
-│       ├── _helpers.tpl        # Labels e seletores reutilizáveis
-│       ├── namespace.yaml
-│       ├── secret-postgres.yaml
-│       ├── configmap-nginx.yaml
-│       ├── postgres-statefulset.yaml
-│       ├── postgres-service.yaml
-│       ├── backend-deployment.yaml
-│       ├── backend-service.yaml
-│       ├── backend-hpa.yaml
-│       ├── frontend-deployment.yaml
-│       └── frontend-service.yaml
-├── guess/                      # Código-fonte Flask (intocado)
-│   ├── __init__.py
-│   ├── discover.py
-│   └── game_routes.py
-├── repository/                 # Camada de persistência (intocada)
-│   ├── entities.py
-│   ├── postgres.py
-│   ├── sqlite.py
-│   ├── dynamodb.py
-│   └── hash.py
-├── frontend/                   # Código-fonte React (intocado)
-│   ├── package.json
-│   ├── public/
-│   └── src/
-│       ├── App.tsx
-│       └── components/
-│           ├── Home.tsx
-│           ├── Maker.tsx
-│           └── Breaker.tsx
-├── run.py
-└── tests/
-```
-
----
-
 ## Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
