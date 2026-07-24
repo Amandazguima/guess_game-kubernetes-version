@@ -7,8 +7,8 @@
 dockerHubUser: amandazguima
 
 images:
-  backend: amandazguima/guess-game-backend:v1
-  frontend: amandazguima/guess-game-frontend:v1
+  backend: amandazguima/guess-game-backend:v2
+  frontend: amandazguima/guess-game-frontend:v2
   postgres: postgres:15-alpine
   pullPolicy: IfNotPresent
 
